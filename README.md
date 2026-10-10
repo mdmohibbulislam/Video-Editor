@@ -50,13 +50,14 @@ python manage.py runserver
 ```
 Open http://127.0.0.1:8000 in your browser.
 
-##Notes
+## Notes
 
 - Uploaded and processed files are stored in the media/ folder (ignored by Git).
 - Make sure FFmpeg is installed (ffmpeg -version).
 - Change the SECRET_KEY in settings.py before deploying to production.
 
-##License
+## License
+
 This project is open source and available under the MIT License.
 text---
 
