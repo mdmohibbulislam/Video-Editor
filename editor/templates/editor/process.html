@@ -1,0 +1,479 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Process — {{ video.title }}</title>
+    <style>
+        :root {
+            --bg: #0f1117;
+            --surface: #1a1d27;
+            --surface-hover: #222633;
+            --border: #2d3344;
+            --text: #e8eaed;
+            --text-muted: #9aa0b0;
+            --primary: #6366f1;
+            --primary-hover: #818cf8;
+            --accent: #22d3ee;
+            --radius: 12px;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+            background: var(--bg);
+            color: var(--text);
+            min-height: 100vh;
+            line-height: 1.5;
+        }
+
+        .container {
+            max-width: 720px;
+            margin: 0 auto;
+            padding: 32px 20px 60px;
+        }
+
+        .back {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            color: var(--text-muted);
+            text-decoration: none;
+            font-size: 0.9rem;
+            margin-bottom: 24px;
+        }
+
+        .back:hover {
+            color: var(--text);
+        }
+
+        header {
+            margin-bottom: 32px;
+        }
+
+        header h1 {
+            font-size: 1.5rem;
+            font-weight: 700;
+            letter-spacing: -0.02em;
+            margin-bottom: 6px;
+        }
+
+        header p {
+            color: var(--text-muted);
+            font-size: 0.95rem;
+        }
+
+        .actions {
+            display: flex;
+            flex-direction: column;
+            gap: 16px;
+        }
+
+        .action-card {
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: var(--radius);
+            padding: 22px;
+        }
+
+        .action-card h3 {
+            font-size: 1rem;
+            font-weight: 600;
+            margin-bottom: 6px;
+        }
+
+        .action-card .desc {
+            font-size: 0.85rem;
+            color: var(--text-muted);
+            margin-bottom: 16px;
+        }
+
+        .form-row {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 12px;
+            align-items: flex-end;
+        }
+
+        .field {
+            flex: 1;
+            min-width: 140px;
+        }
+
+        label {
+            display: block;
+            font-size: 0.8rem;
+            font-weight: 500;
+            color: var(--text-muted);
+            margin-bottom: 6px;
+        }
+
+        input[type="text"],
+        input[type="number"],
+        select {
+            width: 100%;
+            padding: 10px 12px;
+            background: var(--bg);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            color: var(--text);
+            font-size: 0.9rem;
+            outline: none;
+            transition: border-color 0.15s;
+        }
+
+        input:focus,
+        select:focus {
+            border-color: var(--primary);
+        }
+
+        select {
+            cursor: pointer;
+        }
+
+        .btn {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            padding: 10px 16px;
+            border-radius: 8px;
+            font-size: 0.875rem;
+            font-weight: 500;
+            border: none;
+            cursor: pointer;
+            transition: background 0.15s;
+            white-space: nowrap;
+        }
+
+        .btn-primary {
+            background: var(--primary);
+            color: white;
+        }
+
+        .btn-primary:hover {
+            background: var(--primary-hover);
+        }
+
+        .btn-block {
+            width: 100%;
+            margin-top: 4px;
+        }
+
+        .thumb-form {
+            margin: 0;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="container">
+        <a href="/" class="back">← Back to videos</a>
+
+        <header>
+            <h1>{{ video.title }}</h1>
+            <p>Choose an action to process this video</p>
+        </header>
+
+        <div class="preview-section">
+            <h3 style="margin-bottom: 12px; font-size: 1rem;">Preview</h3>
+            <video id="video-preview" controls
+                style="width: 100%; max-height: 360px; border-radius: 8px; background: #000;">
+                <source src="{{ video.original_file.url }}" type="video/mp4">
+                Your browser does not support the video tag.
+            </video>
+
+            {% if video.processed_file %}
+            <p style="margin-top: 12px; font-size: 0.85rem; color: #9aa0b0;">
+                Processed version:
+                <a href="{{ video.processed_file.url }}" style="color: #22d3ee;">Download</a>
+            </p>
+            <video controls
+                style="width: 100%; max-height: 280px; border-radius: 8px; background: #000; margin-top: 8px;">
+                <source src="{{ video.processed_file.url }}" type="video/mp4">
+            </video>
+            {% endif %}
+            <div class="waveform-wrap" style="margin-top: 16px;">
+                <canvas id="waveform" width="800" height="80"
+                    style="width: 100%; height: 80px; background: #1a1d27; border-radius: 8px; display: block;">
+                </canvas>
+                <p style="font-size: 0.75rem; color: #9aa0b0; margin-top: 6px;">
+                    Audio waveform (click to seek)
+                </p>
+            </div>
+        </div>
+
+        <div class="actions">
+
+            <!-- Trim -->
+            <div class="action-card">
+                <h3>Trim</h3>
+                <p class="desc">Cut a segment by start time and duration.</p>
+                <form method="post">
+                    {% csrf_token %}
+                    <input type="hidden" name="action" value="trim">
+                    <div class="form-row">
+                        <div class="field">
+                            <label>Start (HH:MM:SS)</label>
+                            <input type="text" name="start" id="trim-start" value="00:00:00">
+                        </div>
+                        <div class="field">
+                            <label>Duration (HH:MM:SS)</label>
+                            <input type="text" name="duration" id="trim-duration" value="00:00:00">
+                        </div>
+                        <button type="submit" class="btn btn-primary">Trim</button>
+                    </div>
+                </form>
+            </div>
+
+            <!-- Text Overlay -->
+            <div class="action-card">
+                <h3>Add Text Overlay</h3>
+                <p class="desc">Burn text near the bottom center of the video.</p>
+                <form method="post">
+                    {% csrf_token %}
+                    <input type="hidden" name="action" value="add_text">
+                    <div class="form-row">
+                        <div class="field">
+                            <label>Text</label>
+                            <input type="text" name="text" value="Edited with Testing">
+                        </div>
+                        <button type="submit" class="btn btn-primary">Add Text</button>
+                    </div>
+                </form>
+            </div>
+
+            <!-- Speed -->
+            <div class="action-card">
+                <h3>Change Speed</h3>
+                <p class="desc">Speed up or slow down the video (audio is adjusted too).</p>
+                <form method="post">
+                    {% csrf_token %}
+                    <input type="hidden" name="action" value="speed">
+                    <div class="form-row">
+                        <div class="field">
+                            <label>Speed multiplier</label>
+                            <input type="number" name="speed" value="1.5" step="0.1" min="0.25" max="4">
+                        </div>
+                        <button type="submit" class="btn btn-primary">Apply Speed</button>
+                    </div>
+                </form>
+            </div>
+
+            <!-- Merge -->
+            <div class="action-card">
+                <h3>Merge with Another Video</h3>
+                <p class="desc">Concatenate this video with another uploaded clip.</p>
+                <form method="post">
+                    {% csrf_token %}
+                    <input type="hidden" name="action" value="merge">
+                    <div class="form-row">
+                        <div class="field">
+                            <label>Second video</label>
+                            <select name="second_video">
+                                {% for v in all_videos %}
+                                <option value="{{ v.pk }}">{{ v.title }}</option>
+                                {% empty %}
+                                <option disabled>No other videos available</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        <button type="submit" class="btn btn-primary">Merge</button>
+                    </div>
+                </form>
+            </div>
+
+            <!-- Thumbnail -->
+            <div class="action-card">
+                <h3>Extract Thumbnail</h3>
+                <p class="desc">Grab a still frame at 5 seconds as a JPG.</p>
+                <form method="post" class="thumb-form">
+                    {% csrf_token %}
+                    <input type="hidden" name="action" value="thumbnail">
+                    <button type="submit" class="btn btn-primary btn-block">Extract Thumbnail</button>
+                </form>
+            </div>
+
+        </div>
+    </div>
+    <script>
+        (function () {
+            const video = document.getElementById('video-preview');
+            const startInput = document.getElementById('trim-start');
+            const timeDisplay = document.getElementById('time-display'); // may be null
+            const canvas = document.getElementById('waveform');
+
+            if (!video || !canvas) return;
+
+            const ctx = canvas.getContext('2d');
+            let peaks = null;
+
+            function parseTime(str) {
+                if (!str) return 0;
+                const parts = str.trim().split(':').map(Number);
+                if (parts.length === 3) return parts[0] * 3600 + parts[1] * 60 + parts[2];
+                if (parts.length === 2) return parts[0] * 60 + parts[1];
+                return Number(str) || 0;
+            }
+
+            function formatTime(seconds) {
+                seconds = Math.max(0, Math.floor(seconds || 0));
+                const h = Math.floor(seconds / 3600);
+                const m = Math.floor((seconds % 3600) / 60);
+                const s = seconds % 60;
+                return [h, m, s].map(v => String(v).padStart(2, '0')).join(':');
+            }
+
+            function draw() {
+                const w = canvas.clientWidth || 800;
+                const h = canvas.clientHeight || 80;
+
+                if (canvas.width !== w || canvas.height !== h) {
+                    canvas.width = w;
+                    canvas.height = h;
+                }
+
+                ctx.clearRect(0, 0, w, h);
+                ctx.fillStyle = '#1a1d27';
+                ctx.fillRect(0, 0, w, h);
+
+                if (!peaks) {
+                    ctx.fillStyle = '#6b7280';
+                    ctx.font = '13px sans-serif';
+                    ctx.textAlign = 'center';
+                    ctx.fillText('Generating waveform…', w / 2, h / 2 + 4);
+                    return;
+                }
+
+                const mid = h / 2;
+                const barW = w / peaks.length;
+
+                ctx.fillStyle = '#6366f1';
+                for (let i = 0; i < peaks.length; i++) {
+                    const amp = peaks[i] * (h * 0.42);
+                    ctx.fillRect(i * barW, mid - amp, Math.max(1, barW * 0.75), amp * 2);
+                }
+
+                // Playhead
+                if (video.duration && isFinite(video.duration) && video.duration > 0) {
+                    const x = (video.currentTime / video.duration) * w;
+                    ctx.strokeStyle = '#22d3ee';
+                    ctx.lineWidth = 2;
+                    ctx.beginPath();
+                    ctx.moveTo(x, 0);
+                    ctx.lineTo(x, h);
+                    ctx.stroke();
+                }
+            }
+
+            async function generateWaveform() {
+                try {
+                    const src = video.currentSrc || (video.querySelector('source') && video.querySelector('source').src);
+                    if (!src) {
+                        peaks = [];
+                        draw();
+                        return;
+                    }
+
+                    const response = await fetch(src);
+                    if (!response.ok) throw new Error('Fetch failed');
+                    const arrayBuffer = await response.arrayBuffer();
+
+                    const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+                    const audioBuffer = await audioCtx.decodeAudioData(arrayBuffer);
+
+                    const raw = audioBuffer.getChannelData(0);
+                    const samples = 250;
+                    const blockSize = Math.floor(raw.length / samples) || 1;
+                    const rawPeaks = [];
+
+                    for (let i = 0; i < samples; i++) {
+                        let max = 0;
+                        const start = i * blockSize;
+                        for (let j = 0; j < blockSize; j++) {
+                            const val = Math.abs(raw[start + j] || 0);
+                            if (val > max) max = val;
+                        }
+                        rawPeaks.push(max);
+                    }
+
+                    const maxPeak = Math.max.apply(null, rawPeaks.concat([0.001]));
+                    peaks = rawPeaks.map(function (v) { return v / maxPeak; });
+                    draw();
+                } catch (err) {
+                    console.warn('Waveform error:', err);
+                    peaks = [];
+                    draw();
+                }
+            }
+
+            // ---- Events ----
+            video.addEventListener('timeupdate', function () {
+                if (timeDisplay) {
+                    timeDisplay.textContent = 'Current: ' + formatTime(video.currentTime);
+                }
+                draw();
+            });
+
+            video.addEventListener('seeked', draw);
+            video.addEventListener('play', draw);
+            video.addEventListener('pause', draw);
+
+            video.addEventListener('loadedmetadata', function () {
+                draw();
+                generateWaveform();
+            });
+
+            if (startInput) {
+                startInput.addEventListener('change', function () {
+                    const t = parseTime(this.value);
+                    if (video.duration && isFinite(video.duration)) {
+                        video.currentTime = Math.min(Math.max(0, t), video.duration);
+                    }
+                    video.pause();
+                    draw();
+                });
+            }
+
+            // Click to seek – more robust
+            canvas.addEventListener('click', function (e) {
+                if (!video.duration || !isFinite(video.duration) || video.duration <= 0) {
+                    console.warn('Video duration not ready');
+                    return;
+                }
+
+                const rect = canvas.getBoundingClientRect();
+                let pct = (e.clientX - rect.left) / rect.width;
+                pct = Math.max(0, Math.min(1, pct));
+
+                const newTime = pct * video.duration;
+                video.currentTime = newTime;
+
+                if (startInput) {
+                    startInput.value = formatTime(newTime);
+                }
+
+                video.pause();
+                // draw after a short delay so the browser has applied the seek
+                setTimeout(draw, 50);
+            });
+
+            window.addEventListener('resize', draw);
+
+            // Start
+            draw();
+            if (video.readyState >= 1) {
+                generateWaveform();
+            } else {
+                video.addEventListener('loadeddata', generateWaveform, { once: true });
+            }
+        })();
+    </script>
+</body>
+
+</html>
